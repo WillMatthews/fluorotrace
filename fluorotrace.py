@@ -8,23 +8,42 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 
 
-def get_stage():
+def get_stage(shape="rectangle"):
+    print("Building Stage")
+    if shape == "rectangle":
+        nodes   = [[0,0],[0,1],[2,1],[2,0]]
+        edge_types = [ "m",  "m",  "d",  "m"]
+    elif shape == "angled":
+        nodes   = [[1,0], [0,1], [1,2], [3,2], [3,0]]
+        edge_types = [ "m",  "m",  "m", "d",  "m"]
 
-    a,b,c,d = (0,0),(0,1),(2,1),(2,0)
-    poly = Polygon([a,b,c,d])
+
+
+    poly = Polygon([n for n in nodes])
     stage = {"polygon":poly,
-        "nodes": {
-            "A":np.array(a),
-            "B":np.array(b),
-            "C":np.array(c),
-            "D":np.array(d)
-        },
-        "edges":{
-            1:{"dir":np.array([1,0]) , "line": LineString([a,b]) ,"type":"mirror"},
-            2:{"dir":np.array([0,-1]) , "line": LineString([b,c]) ,"type":"mirror"},
-            3:{"dir":np.array([-1,0]) , "line": LineString([c,d]) ,"type":"detector"},
-            4:{"dir":np.array([0,1]) , "line": LineString([d,a]) ,"type":"mirror"}
-        }}
+        "edges":{},
+        "xrange": [min([x[0] for x in nodes]),max([x[0] for x in nodes])],
+        "yrange": [min([x[1] for x in nodes]),max([x[1] for x in nodes])]
+        }
+
+    for i in range(len(nodes)):
+        edge1 = nodes[i]
+        if i == len(nodes)-1:
+            edge2 = nodes[0]
+        else:
+            edge2 = nodes[i+1]
+
+        dx, dy = edge2[0]-edge1[0], edge2[1] - edge1[1]
+        if edge_types[i] == "m":
+            t = "mirror"
+        elif edge_types[i] == "dump":
+            t = "dump"
+        elif edge_types[i] == "d":
+            t = "detector"
+        else:
+            raise Exception
+        print(edge1, edge2)
+        stage["edges"][i] = {"dir":np.array([dy,-dx]) , "line": LineString([edge1, edge2]) ,"type":t}
 
     return stage
 
@@ -44,6 +63,8 @@ def sim_ray(ray, stage, dx=0.001):
     itercount = 0
     path = []
     while not detected:
+        if itercount > 100000:
+            return
         itercount += 1
         oldray = copy.deepcopy(ray)
         path.append(oldray["pos"])
@@ -59,9 +80,10 @@ def sim_ray(ray, stage, dx=0.001):
                 #print(intersection)
                 if not intersection.is_empty:
                     do_reflect, ref = (True if stage["edges"][e]["type"] == "mirror" else False), e
+                    is_dump = (True if stage["edges"][e]["type"] == "dump" else False)
                     break
             else:
-                print("NO INTERSECTION")
+                print("NO INTERSECTION ERROR")
                 return
 
             if do_reflect:
@@ -71,24 +93,61 @@ def sim_ray(ray, stage, dx=0.001):
                 #print("REFLECT!", "iters:",itercount, "ray:", ray)
                 #print("\n"*3)
             else:
-                print("struck detector")
+                if is_dump:
+                    return
+                print("Struck detector")
                 return path
 
 
 
-stage = get_stage()
-rayObj = {"dir": normalise(np.array([-0.2,0.9])) , "pos": np.array([0.5,0.5])}
+stage = get_stage(shape="angled")
 
-path = sim_ray(rayObj, stage)
 
-print(path)
+num_radials = 3
+phi = 0.1
 
-xs = [p[0] for p in path]
-ys = [p[1] for p in path]
-l = np.linspace(0,0.9,len(xs))
+xs = np.linspace(stage["xrange"][0]+0.1,stage["xrange"][1]-0.1,10)
+ys = np.linspace(stage["yrange"][0]+0.1,stage["yrange"][1]-0.1,10)
 
-plt.scatter(xs,ys,c=cm.hot(l))
+tiles = []
+for x in xs:
+    for y in ys:
+        if stage["polygon"].contains(Point(x, y)):
+            tiles.append([x,y])
+            print("Tile Added", (x,y))
+
+
+
+endpoints = []
+plt.figure()
+for j, tile in enumerate(tiles):
+    print("TILE", j, "/", len(tiles))
+    for i in range(num_radials):
+        rayObj = {"dir": normalise(np.array([np.sin(phi + 2 * np.pi * i/num_radials),np.cos(phi + 2 * np.pi * i/num_radials)])) , "pos": np.array(tile)}
+        print("RAY", i, "/", num_radials)
+        path = sim_ray(rayObj, stage)
+        if path is not None:
+            endpoints.append(path[-1])
+
+        if path is not None:
+            xs = [p[0] for p in path]
+            ys = [p[1] for p in path]
+            plt.plot(xs,ys)
+
+plt.scatter([t[0] for t in tiles], [t[1] for t in tiles])
 plt.plot(*stage["polygon"].exterior.xy);
 plt.plot([2,2],[0,1],color="red")
-plt.title("Single Ray Trace")
+plt.title("Geometry")
+
+
+plt.figure()
+ends = [e[1] for e in endpoints]
+
+num_bins = 50
+# the histogram of the data
+n, bins, patches = plt.hist(ends, num_bins, density=1, facecolor='blue', alpha=0.5)
+
+plt.title("detector histogram")
+
+
 plt.show()
