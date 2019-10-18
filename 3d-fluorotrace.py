@@ -17,7 +17,6 @@ from mpl_toolkits.mplot3d import Axes3D
 import progressbar
 
 
-
 def get_stage(shape="rectangle", zwalls=(0,1)):
     print("Building Stage")
     if shape == "rectangle":
@@ -86,7 +85,6 @@ def rotation_matrix(axis, theta):
                      [2 * (bd + ac), 2 * (cd - ab), aa + dd - bb - cc]])
 
 
-
 def random_fibonacci_sphere(samples):
     rnd = random.random()
     rand_rot_mat = rotation_matrix([random.random(), random.random(), random.random()], 2*np.pi*random.random())
@@ -106,6 +104,13 @@ def random_fibonacci_sphere(samples):
         points.append(np.dot(rand_rot_mat, [x,y,z]))
 
     return points
+
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection='3d')
+    # xs = random_fibonacci_sphere(100)
+    # ax.scatter([x[0] for x in xs], [x[1] for x in xs], [x[2] for x in xs])
+    # plt.show()
+    # exit()
 
 
 def normalise(x):
@@ -226,14 +231,6 @@ def save_data(endpoints, opls, enddirs, stage):
     datadict = {"ends":endpoints, "opls":opls, "dir":enddirs, "stage":stage}
     with open("./data/data-" + stage["name"] + "-{date:%Y-%m-%d_%H:%M:%S}.pickle".format( date=datetime.datetime.now()), "wb") as f:
         pickle.dump(datadict, f)
-
-
-# fig = plt.figure()
-# ax = fig.add_subplot(111, projection='3d')
-# xs = random_fibonacci_sphere(100)
-# ax.scatter([x[0] for x in xs], [x[1] for x in xs], [x[2] for x in xs])
-# plt.show()
-# exit()
 
 
 def main():
