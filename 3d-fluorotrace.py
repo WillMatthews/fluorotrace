@@ -156,14 +156,13 @@ def sim_ray(ray, stage, dl=0.1,max_steps=10000):
             ray["dir"] = reflect(ray,[0,0,-1])
 
 
-def run_trial(stage, spacetup, num_radials, show_single_trace=False, step_size=0.1, max_steps=10000):
+def add_raypoints(stage, spacetup, num_radials):
     (xd, yd, zd) = spacetup
     xs = np.linspace(stage["xrange"][0]+0.1, stage["xrange"][1]-0.1, xd)
     ys = np.linspace(stage["yrange"][0]+0.1, stage["yrange"][1]-0.1, yd)
     zs = np.linspace(stage["zrange"][0]+0.1, stage["zrange"][1]-0.1, zd)
 
     tiles, cnt = [], 0
-    #tiles = [[0.5,0.5,0.5]]
     for x in xs:
         for y in ys:
             if stage["polygon"].contains(Point(x, y)):
@@ -172,7 +171,16 @@ def run_trial(stage, spacetup, num_radials, show_single_trace=False, step_size=0
                         tiles.append(t)
                         cnt += 1
 
+    stage["raypoints"] = tiles
+    stage["numradials"] = num_radials
     print(cnt, "RayPoints Added: ", cnt * num_radials, "rays to be traced")
+
+
+
+def run_trial(stage, spacetup, num_radials, show_single_trace=False, step_size=0.1, max_steps=10000):
+
+    add_raypoints(stage, spacetup, num_radials)
+    tiles = stage["raypoints"]
 
     endpoints, opls, enddirs = [], [], []
     for j in progressbar.progressbar(range(len(tiles)), redirect_stdout=True):
@@ -252,8 +260,9 @@ def present_data(endpoints, opls, enddirs):
 
 def save_data(endpoints, opls, enddirs, stage):
     datadict = {"ends":endpoints, "opls":opls, "dir":enddirs, "stage":stage}
-    with open("./data-{date:%Y-%m-%d_%H:%M:%S}.pickle".format( date=datetime.datetime.now()), "wb") as f:
+    with open("./data/data-{date:%Y-%m-%d_%H:%M:%S}.pickle".format( date=datetime.datetime.now()), "wb") as f:
         pickle.dump(datadict, f)
+
 
 # fig = plt.figure()
 # ax = fig.add_subplot(111, projection='3d')
@@ -264,10 +273,10 @@ def save_data(endpoints, opls, enddirs, stage):
 
 
 def main():
-    stage = get_stage(shape="rectangle",zwalls=(0,0.1))
-    num_radials = 1000
-    endpoints, opls, enddirs = run_trial(stage, (10,10,3), num_radials,show_single_trace=False, step_size = 0.05, max_steps= 10000)
-    save_data(endpoints, opls, enddirs)
+    stage = get_stage(shape="semicircle",zwalls=(0,0.1))
+    num_radials = 100
+    endpoints, opls, enddirs = run_trial(stage, (12,12,4), num_radials,show_single_trace=False, step_size = 0.01, max_steps= 10000)
+    save_data(endpoints, opls, enddirs, stage)
 
 
 main()
