@@ -65,7 +65,7 @@ def get_stage(shape="rectangle", zwalls=(0,1)):
         else:
             raise Exception
         print(edge1, edge2)
-        stage["edges"][i] = {"from":edge1, "to": edge2, "dir":np.array([dy,-dx, 0]) , "line": LineString([edge1, edge2]) ,"type":t}
+        stage["edges"][i] = {"from":edge1, "to":edge2, "dir":np.array([dy, -dx, 0]), "line":LineString([edge1, edge2]), "type":t}
 
     return stage
 
@@ -73,7 +73,7 @@ def get_stage(shape="rectangle", zwalls=(0,1)):
 def rotation_matrix(axis, theta):
     """
     Return the rotation matrix associated with counterclockwise rotation about
-    the given axis by theta radians.
+    the given axis (vec) by theta radians.
     """
     axis = np.asarray(axis)
     axis = axis / np.sqrt(np.dot(axis, axis))
@@ -196,7 +196,6 @@ def run_trial(stage, spacetup, num_radials, show_single_trace=False, step_size=0
                 last_point2 = path[-2]
                 endpoints.append(last_point)
                 end_dir = normalise([ x-y for x,y in zip(last_point,last_point2) ])
-                #print(last_point, last_point2, end_dir)
                 enddirs.append(end_dir)
             if opl is not None:
                 opls.append(opl)
@@ -223,44 +222,9 @@ def run_trial(stage, spacetup, num_radials, show_single_trace=False, step_size=0
     return endpoints, opls, enddirs
 
 
-def present_data(endpoints, opls, enddirs):
-    try:
-        plt.figure()
-        ends = [e[1] for e in endpoints]
-
-        num_bins = 100
-        # the histogram of the data
-        n, bins, patches = plt.hist(ends, num_bins, density=1, facecolor='blue', alpha=0.5)
-        plt.xlabel("Position")
-        plt.ylabel("Freq.")
-        plt.title("Detector POSITION histogram")
-    except Exception:
-        pass
-
-    try:
-        plt.figure()
-
-        num_bins = 100
-        # the histogram of the data
-        n, bins, patches = plt.hist(opls, num_bins, density=1, facecolor='blue', alpha=0.5)
-        plt.xlabel("OPL")
-        plt.ylabel("Freq.")
-        plt.title("Detector OPTICAL PATH LENGTH histogram")
-    except Exception:
-        pass
-
-    try:
-        print("MEAN OPL:", np.mean(opls))
-        print("MAX/MIN OPL:", max(opls), min(opls))
-    except Exception:
-        pass
-
-    plt.show()
-
-
 def save_data(endpoints, opls, enddirs, stage):
     datadict = {"ends":endpoints, "opls":opls, "dir":enddirs, "stage":stage}
-    with open("./data/data-{date:%Y-%m-%d_%H:%M:%S}.pickle".format( date=datetime.datetime.now()), "wb") as f:
+    with open("./data/data-" + stage["name"] + "-{date:%Y-%m-%d_%H:%M:%S}.pickle".format( date=datetime.datetime.now()), "wb") as f:
         pickle.dump(datadict, f)
 
 
@@ -274,8 +238,8 @@ def save_data(endpoints, opls, enddirs, stage):
 
 def main():
     stage = get_stage(shape="semicircle",zwalls=(0,0.1))
-    num_radials = 100
-    endpoints, opls, enddirs = run_trial(stage, (12,12,4), num_radials,show_single_trace=False, step_size = 0.01, max_steps= 10000)
+    num_radials = 3
+    endpoints, opls, enddirs = run_trial(stage, (15,15,4), num_radials,show_single_trace=False, step_size = 0.01, max_steps= 10000)
     save_data(endpoints, opls, enddirs, stage)
 
 

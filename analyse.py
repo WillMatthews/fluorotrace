@@ -70,7 +70,7 @@ def present_data(data):
             angles.append(-angle)
 
         n, bins, patches = plt.hist(angles, num_bins, density=1, facecolor='blue', alpha=0.5)
-        plt.xlabel("Angle of exit (yz plane) (Radians)")
+        plt.xlabel("Angle of exit (yz plane) (Degrees)")
         plt.ylabel("Freq.")
         plt.title("Detector EXIT ANGLE histogram")
         plt.grid()
