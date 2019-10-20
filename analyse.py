@@ -23,9 +23,9 @@ def present_data(data):
     try:
         endpoints = data["ends"]
         plt.figure()
-        ends = [e[1] for e in endpoints]
+        ends = [abs(e[1]) for e in endpoints]
 
-        num_bins = 1000
+        num_bins = 300
         # the histogram of the data
         n, bins, patches = plt.hist(ends, num_bins, density=1, facecolor='blue', alpha=0.5)
         plt.xlabel("Position")
@@ -64,10 +64,10 @@ def present_data(data):
         angles = []
         wall_normal = [-1,0,0]
         for d in enddirs:
-            angle = np.arcsin(np.dot(d,wall_normal))/ (np.linalg.norm(d) * np.linalg.norm(wall_normal))
+            angle = - np.arcsin(np.dot(d,wall_normal))/ (np.linalg.norm(d) * np.linalg.norm(wall_normal))
             angle = 180 * angle/np.pi
             angles.append(angle)
-            angles.append(-angle)
+            #angles.append(-angle)
 
         n, bins, patches = plt.hist(angles, num_bins, density=1, facecolor='blue', alpha=0.5)
         plt.xlabel("Angle of exit (yz plane) (Degrees)")
@@ -87,6 +87,7 @@ def present_data(data):
         plt.figure()
         stage = data["stage"]
         tiles = stage["raypoints"]
+        print("Number of raypoints:", len(tiles))
         plt.scatter([t[0] for t in tiles], [t[1] for t in tiles])
         plt.plot(*stage["polygon"].exterior.xy, color="green", linewidth=2);
         for e in stage["edges"]:

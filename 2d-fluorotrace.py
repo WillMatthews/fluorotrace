@@ -7,6 +7,8 @@ from shapely.geometry.polygon import Polygon
 import matplotlib.pyplot as plt
 from matplotlib import cm
 import random
+from lux import Flag
+
 
 def get_stage(shape="rectangle"):
     print("Building Stage")
@@ -56,7 +58,6 @@ def get_stage(shape="rectangle"):
         stage["edges"][i] = {"from":edge1, "to": edge2, "dir":np.array([dy,-dx]) , "line": LineString([edge1, edge2]) ,"type":t}
 
     return stage
-
 
 
 def normalise(x):
@@ -110,28 +111,44 @@ def sim_ray(ray, stage, dx=0.1):
 
 
 
+f = Flag()
+f.run()
 stage = get_stage(shape="semicircle")
 
-
-num_radials = 1000
+num_radials = 1
 
 xs = np.linspace(stage["xrange"][0]+0.1,stage["xrange"][1]-0.1,15)
 ys = np.linspace(stage["yrange"][0]+0.1,stage["yrange"][1]-0.1,10)
 
 tiles = []
-for x in xs:
-    for y in ys:
-        if stage["polygon"].contains(Point(x, y)):
-            tiles.append([x,y])
-            print("Tile Added", (x,y))
+# for x in xs:
+#     for y in ys:
+#         if stage["polygon"].contains(Point(x, y)):
+#             tiles.append([x,y])
+#             print("Tile Added", (x,y))
+
+numtiles = 10000
+
+while len(tiles) < numtiles:
+    x = random.random()*(stage["xrange"][1]-stage["xrange"][0]) + stage["xrange"][0]
+    y = random.random()*(stage["yrange"][1]-stage["yrange"][0]) + stage["yrange"][0]
+    if stage["polygon"].contains(Point(x,y)):
+        tiles.append([x,y])
+    else:
+        print("Tile Reject")
+
+
+
+
 
 # tiles = [[0.5, 0.5]]
 
+f.busy()
 endpoints = []
 opls = []
 plt.figure()
 for j, tile in enumerate(tiles):
-    phi = random.random()
+    phi = 2 * np.pi * random.random()
     print("TILE", j+1, "/", len(tiles))
     for i in range(num_radials):
         rayObj = {"dir": normalise(np.array([np.sin(phi + 2 * np.pi * i/num_radials),np.cos(phi + 2 * np.pi * i/num_radials)])) , "pos": np.array(tile)}
@@ -189,4 +206,5 @@ try:
 except Exception:
     pass
 
+f.ready()
 plt.show()

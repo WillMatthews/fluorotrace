@@ -15,6 +15,7 @@ from matplotlib import cm
 from mpl_toolkits.mplot3d import Axes3D
 
 import progressbar
+import lux
 
 
 def get_stage(shape="rectangle", zwalls=(0,1)):
@@ -123,6 +124,7 @@ def reflect(ray, norm):
     return normalise((np.dot(raydir,norm)) * -2 * norm + raydir)
 
 
+@profile
 def sim_ray(ray, stage, dl=0.1,max_steps=10000):
     path, itercount, detected  = [], 0, False
     minz, maxz = stage["zwalls"]
@@ -147,6 +149,7 @@ def sim_ray(ray, stage, dl=0.1,max_steps=10000):
                 return None, None
 
             if do_reflect:
+                itercount -= 1
                 ray["pos"] -= ray["dir"] * dl
                 wall = normalise(stage["edges"][ref]["dir"])
                 ray["dir"] = reflect(ray, wall)
@@ -156,35 +159,38 @@ def sim_ray(ray, stage, dl=0.1,max_steps=10000):
                 return path, itercount * dl
 
         if ray["pos"][2] < minz:
+            itercount -= 1
+            ray["pos"] -= ray["dir"] * dl
             ray["dir"] = reflect(ray,[0,0,1])
         elif ray["pos"][2] > maxz:
+            itercount -= 1
+            ray["pos"] -= ray["dir"] * dl
             ray["dir"] = reflect(ray,[0,0,-1])
 
 
-def add_raypoints(stage, spacetup, num_radials):
-    (xd, yd, zd) = spacetup
-    xs = np.linspace(stage["xrange"][0]+0.1, stage["xrange"][1]-0.1, xd)
-    ys = np.linspace(stage["yrange"][0]+0.1, stage["yrange"][1]-0.1, yd)
-    zs = np.linspace(stage["zrange"][0]+0.1, stage["zrange"][1]-0.1, zd)
+def add_raypoints(stage, num_raypoints, num_radials):
+    #(xd, yd, zd) = spacetup
+    #xs = np.linspace(stage["xrange"][0]+0.1, stage["xrange"][1]-0.1, xd)
+    #ys = np.linspace(stage["yrange"][0]+0.1, stage["yrange"][1]-0.1, yd)
+    #zs = np.linspace(stage["zrange"][0]+0.1, stage["zrange"][1]-0.1, zd)
 
-    tiles, cnt = [], 0
-    for x in xs:
-        for y in ys:
-            if stage["polygon"].contains(Point(x, y)):
-                ts = [[x,y,z] for z in zs]
-                for t in ts:
-                        tiles.append(t)
-                        cnt += 1
+    raypoints, cnt = [], 0
+    while len(raypoints) < num_raypoints:
+        x = random.random()*(stage["xrange"][1]-stage["xrange"][0]) + stage["xrange"][0]
+        y = random.random()*(stage["yrange"][1]-stage["yrange"][0]) + stage["yrange"][0]
+        z = random.random()*(stage["zrange"][1]-stage["zrange"][0]) + stage["zrange"][0]
+        if stage["polygon"].contains(Point(x,y)):
+            raypoints.append([x,y,z])
 
-    stage["raypoints"] = tiles
+    stage["raypoints"] = raypoints
     stage["numradials"] = num_radials
-    print(cnt, "RayPoints Added: ", cnt * num_radials, "rays to be traced")
+    print(len(raypoints), "RayPoints Added: ", len(raypoints) * num_radials, "rays to be traced")
 
 
 
-def run_trial(stage, spacetup, num_radials, show_single_trace=False, step_size=0.1, max_steps=10000):
+def run_trial(stage, show_single_trace=False, step_size=0.1, max_steps=10000, num_raypoints=1000, num_radials = 1000):
 
-    add_raypoints(stage, spacetup, num_radials)
+    add_raypoints(stage, num_raypoints, num_radials)
     tiles = stage["raypoints"]
 
     endpoints, opls, enddirs = [], [], []
@@ -196,7 +202,7 @@ def run_trial(stage, spacetup, num_radials, show_single_trace=False, step_size=0
             raydir_norm = normalise(np.array(raydir))
             rayObj = {"dir": raydir_norm , "pos": np.array(tile)}
             path, opl = sim_ray(rayObj, stage, dl=step_size, max_steps=max_steps)
-            if path is not None:
+            if path is not None and len(path) > 2:
                 last_point = path[-1]
                 last_point2 = path[-2]
                 endpoints.append(last_point)
@@ -234,10 +240,12 @@ def save_data(endpoints, opls, enddirs, stage):
 
 
 def main():
+    f = lux.Flag()
+    f.busy()
     stage = get_stage(shape="semicircle",zwalls=(0,0.1))
-    num_radials = 3
-    endpoints, opls, enddirs = run_trial(stage, (15,15,4), num_radials,show_single_trace=False, step_size = 0.01, max_steps= 10000)
+    endpoints, opls, enddirs = run_trial(stage, show_single_trace=False, step_size = 0.01, max_steps=10000, num_raypoints=100, num_radials=30)
     save_data(endpoints, opls, enddirs, stage)
+    f.ready()
 
 
 main()
