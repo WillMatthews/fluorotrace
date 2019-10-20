@@ -119,7 +119,7 @@ def normalise(x):
 
 
 def reflect(ray, norm):
-    raydir = np.array(ray["dir"])
+    raydir = np.array(ray[0])
     norm = np.array(norm)
     return normalise((np.dot(raydir,norm)) * -2 * norm + raydir)
 
@@ -132,12 +132,12 @@ def sim_ray(ray, stage, dl=0.1,max_steps=10000):
         if itercount > max_steps:
             return None, None
         itercount += 1
-        oldray = copy.deepcopy(ray)
-        path.append(oldray["pos"])
-        ray["pos"] += ray["dir"] * dl
-        if not stage["polygon"].contains(Point(ray["pos"][0], ray["pos"][1])):
+        oldray = ray
+        path.append(oldray[1])
+        ray = (ray[0], ray[1] + ray[0] * dl)
+        if not stage["polygon"].contains(Point(ray[1][0], ray[1][1])):
             ## find intersecting line...
-            test_line = LineString([(ray["pos"][0], ray["pos"][1]), (oldray["pos"][0], oldray["pos"][1])])
+            test_line = LineString([(ray[1][0], ray[1][1]), (oldray[1][0], oldray[1][1])])
             for e in stage["edges"].keys():
                 intersection = (stage["edges"][e]["line"].intersection(test_line))
                 if not intersection.is_empty:
@@ -150,22 +150,21 @@ def sim_ray(ray, stage, dl=0.1,max_steps=10000):
 
             if do_reflect:
                 itercount -= 1
-                ray["pos"] -= ray["dir"] * dl
                 wall = normalise(stage["edges"][ref]["dir"])
-                ray["dir"] = reflect(ray, wall)
+                ray = (reflect(ray, wall), ray[1] - ray[0] * dl)
             else:
                 if is_dump:
                     return None, None
                 return path, itercount * dl
 
-        if ray["pos"][2] < minz:
+        if ray[1][2] < minz:
             itercount -= 1
-            ray["pos"] -= ray["dir"] * dl
-            ray["dir"] = reflect(ray,[0,0,1])
-        elif ray["pos"][2] > maxz:
+            wall = [0,0,1]
+            ray = (reflect(ray, wall), ray[1] - ray[0] * dl)
+        elif ray[1][2] > maxz:
             itercount -= 1
-            ray["pos"] -= ray["dir"] * dl
-            ray["dir"] = reflect(ray,[0,0,-1])
+            wall = [0,0,-1]
+            ray = (reflect(ray, wall), ray[1] - ray[0] * dl)
 
 
 def add_raypoints(stage, num_raypoints, num_radials):
@@ -200,7 +199,7 @@ def run_trial(stage, show_single_trace=False, step_size=0.1, max_steps=10000, nu
         raydirs = random_fibonacci_sphere(num_radials)
         for i, raydir in enumerate(raydirs):
             raydir_norm = normalise(np.array(raydir))
-            rayObj = {"dir": raydir_norm , "pos": np.array(tile)}
+            rayObj = (raydir_norm , np.array(tile))
             path, opl = sim_ray(rayObj, stage, dl=step_size, max_steps=max_steps)
             if path is not None and len(path) > 2:
                 last_point = path[-1]
