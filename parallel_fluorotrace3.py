@@ -19,8 +19,10 @@ def welcome():
     / /_  / / / / / __ \/ ___/ __ \/ / / ___/ __ `/ ___/ _ \ /_ < 
    / __/ / / /_/ / /_/ / /  / /_/ / / / /  / /_/ / /__/  __/__/ / 
   /_/   /_/\__,_/\____/_/   \____/_/ /_/   \__,_/\___/\___/____/  """
-    print(" "* 30 + "Welcome to")
+    print(" "* 30 + colored("Welcome to","blue"))
     print(colored(ft3,"red"))
+    print("\n"*2)
+    print(" "* 30 + colored("Version 0.1","green"))
     print("\n"*4)
 
 
@@ -33,7 +35,6 @@ def main():
         print("Too many geometries! Not enough workers.")
         print("Exiting...")
         exit()
-
 
     threads = []
     for shape in SHAPES:
