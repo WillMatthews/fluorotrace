@@ -20,10 +20,12 @@ def load_data(fname):
 
 
 def present_data(data):
+
+    ### LOCATION HIST
     try:
         endpoints = data["ends"]
         plt.figure()
-        ends = [abs(e[1]) for e in endpoints]
+        ends = [e[1] for e in endpoints]
 
         num_bins = 300
         # the histogram of the data
@@ -35,6 +37,8 @@ def present_data(data):
     except Exception as e:
         print(e)
 
+
+    ### OPL HIST
     try:
         opls = data["opls"]
         plt.figure()
@@ -55,6 +59,8 @@ def present_data(data):
     except Exception as e:
         print(e)
 
+
+    ### EXIT ANGLE HIST
     try:
         enddirs = data["dir"]
         plt.figure()
@@ -62,12 +68,14 @@ def present_data(data):
         num_bins = 300
         # the histogram of the data
         angles = []
-        wall_normal = [-1,0,0]
+        wall_normal = [1,0,0]
         for d in enddirs:
-            angle = - np.arcsin(np.dot(d,wall_normal))/ (np.linalg.norm(d) * np.linalg.norm(wall_normal))
-            angle = 180 * angle/np.pi
+            angle = np.arccos(np.dot(d,wall_normal))/ (np.linalg.norm(d) * np.linalg.norm(wall_normal))
+            angle = -np.pi/2 + np.abs(angle)
+            angle = (angle + np.pi) % (2 * np.pi) - np.pi
+            angle = 180 * angle / np.pi
             angles.append(angle)
-            #angles.append(-angle)
+            angles.append(-angle)
 
         n, bins, patches = plt.hist(angles, num_bins, density=1, facecolor='blue', alpha=0.5)
         plt.xlabel("Angle of exit (yz plane) (Degrees)")
@@ -77,6 +85,32 @@ def present_data(data):
     except Exception as e:
         print(e)
 
+
+    # ### EXIT ANGLE vs PATH LENGTH SCATTER 3D
+    # #try:
+    # enddirs = data["dir"]
+    # opls = data["opls"]
+    # print(len(enddirs),len(opls),"xxxxxxxxxxxxxxxxx")
+    # plt.figure()
+    # # the histogram of the data
+    # angles = []
+    # wall_normal = [1,0,0]
+    # for d, opl in zip(enddirs, opls):
+    #     angle = np.arcsin(np.dot(d,wall_normal))/ (np.linalg.norm(d) * np.linalg.norm(wall_normal))
+    #     angle = 180 * angle/np.pi
+    #     angles.append(angle)
+    #
+    # plt.scatter(angles, opls)
+    # plt.xlabel("Angle of exit (yz plane) (Degrees)")
+    # plt.ylabel("OPL")
+    # plt.title("Exit angle vs OPL")
+    # plt.grid()
+    # #except Exception as e:
+    # #    print(e)
+
+
+
+    ### GEOMETRY
     try:
         print("MEAN OPL:", np.mean(opls))
         print("MAX/MIN OPL:", max(opls), min(opls))

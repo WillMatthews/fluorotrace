@@ -96,22 +96,12 @@ def random_fibonacci_sphere(samples):
     for i in range(samples):
         y = ((i * offset) - 1) + (offset / 2);
         r = np.sqrt(1 - pow(y,2))
-
         phi = ((i + rnd) % samples) * increment
-
         x = np.cos(phi) * r
         z = np.sin(phi) * r
-
         points.append(np.dot(rand_rot_mat, [x,y,z]))
 
     return points
-
-    # fig = plt.figure()
-    # ax = fig.add_subplot(111, projection='3d')
-    # xs = random_fibonacci_sphere(100)
-    # ax.scatter([x[0] for x in xs], [x[1] for x in xs], [x[2] for x in xs])
-    # plt.show()
-    # exit()
 
 
 def normalise(x):
@@ -124,7 +114,7 @@ def reflect(ray, norm):
     return normalise((np.dot(raydir,norm)) * -2 * norm + raydir)
 
 
-@profile
+#@profile
 def sim_ray(ray, stage, dl=0.1,max_steps=10000):
     path, itercount, detected  = [], 0, False
     minz, maxz = stage["zwalls"]
@@ -167,12 +157,7 @@ def sim_ray(ray, stage, dl=0.1,max_steps=10000):
             ray = (reflect(ray, wall), ray[1] - ray[0] * dl)
 
 
-def add_raypoints(stage, num_raypoints, num_radials):
-    #(xd, yd, zd) = spacetup
-    #xs = np.linspace(stage["xrange"][0]+0.1, stage["xrange"][1]-0.1, xd)
-    #ys = np.linspace(stage["yrange"][0]+0.1, stage["yrange"][1]-0.1, yd)
-    #zs = np.linspace(stage["zrange"][0]+0.1, stage["zrange"][1]-0.1, zd)
-
+def add_raypoints(stage, num_raypoints=1000, num_radials=200):
     raypoints, cnt = [], 0
     while len(raypoints) < num_raypoints:
         x = random.random()*(stage["xrange"][1]-stage["xrange"][0]) + stage["xrange"][0]
@@ -187,16 +172,15 @@ def add_raypoints(stage, num_raypoints, num_radials):
 
 
 
-def run_trial(stage, show_single_trace=False, step_size=0.1, max_steps=10000, num_raypoints=1000, num_radials = 1000):
+def run_trial(stage, show_single_trace=False, step_size=0.1, max_steps=10000):
 
-    add_raypoints(stage, num_raypoints, num_radials)
     tiles = stage["raypoints"]
 
     endpoints, opls, enddirs = [], [], []
     for j in progressbar.progressbar(range(len(tiles)), redirect_stdout=True):
         tile = tiles[j]
         print("TILE", j+1, "/", len(tiles))
-        raydirs = random_fibonacci_sphere(num_radials)
+        raydirs = random_fibonacci_sphere(stage["numradials"])
         for i, raydir in enumerate(raydirs):
             raydir_norm = normalise(np.array(raydir))
             rayObj = (raydir_norm , np.array(tile))
@@ -207,7 +191,6 @@ def run_trial(stage, show_single_trace=False, step_size=0.1, max_steps=10000, nu
                 endpoints.append(last_point)
                 end_dir = normalise([ x-y for x,y in zip(last_point,last_point2) ])
                 enddirs.append(end_dir)
-            if opl is not None:
                 opls.append(opl)
 
             if path is not None and show_single_trace:
@@ -234,16 +217,19 @@ def run_trial(stage, show_single_trace=False, step_size=0.1, max_steps=10000, nu
 
 def save_data(endpoints, opls, enddirs, stage):
     datadict = {"ends":endpoints, "opls":opls, "dir":enddirs, "stage":stage}
-    with open("./data/data-" + stage["name"] + "-{date:%Y-%m-%d_%H:%M:%S}.pickle".format( date=datetime.datetime.now()), "wb") as f:
+    with open("./data/data-" + stage["name"] + "-{date:%Y-%m-%d_%H:%M:%S}.pickle".format(date=datetime.datetime.now()), "wb") as f:
         pickle.dump(datadict, f)
 
 
 def main():
     f = lux.Flag()
     f.busy()
-    stage = get_stage(shape="semicircle",zwalls=(0,0.1))
-    endpoints, opls, enddirs = run_trial(stage, show_single_trace=False, step_size = 0.01, max_steps=10000, num_raypoints=100, num_radials=30)
-    save_data(endpoints, opls, enddirs, stage)
+    for shp in ["rectangle", "semicircle", "triangle1"]:
+        stage = get_stage(shape=shp,zwalls=(0,0.1))
+        add_raypoints(stage, num_raypoints=1000, num_radials=200)
+
+        endpoints, opls, enddirs = run_trial(stage, show_single_trace=False, step_size = 0.01, max_steps=10000)
+        save_data(endpoints, opls, enddirs, stage)
     f.ready()
 
 
