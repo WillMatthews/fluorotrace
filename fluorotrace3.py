@@ -168,18 +168,21 @@ def add_raypoints(stage, num_raypoints=1000, num_radials=200):
 
     stage["raypoints"] = raypoints
     stage["numradials"] = num_radials
-    print(len(raypoints), "RayPoints Added: ", len(raypoints) * num_radials, "rays to be traced")
+    print(stage["name"]+":",len(raypoints), "RayPoints Added: ", len(raypoints) * num_radials, "rays to be traced")
 
 
-
-def run_trial(stage, show_single_trace=False, step_size=0.1, max_steps=10000):
+def run_trial(stage, show_single_trace=False, step_size=0.1, max_steps=10000,use_progbar=True):
 
     tiles = stage["raypoints"]
 
     endpoints, opls, enddirs = [], [], []
-    for j in progressbar.progressbar(range(len(tiles)), redirect_stdout=True):
+    if use_progbar:
+        loopiter = progressbar.progressbar(range(len(tiles)), redirect_stdout=True)
+    else:
+        loopiter = range(len(tiles))
+    for j in loopiter:
         tile = tiles[j]
-        print("TILE", j+1, "/", len(tiles))
+        print(stage["name"] + ": TILE", j+1, "/", len(tiles))
         raydirs = random_fibonacci_sphere(stage["numradials"])
         for i, raydir in enumerate(raydirs):
             raydir_norm = normalise(np.array(raydir))
@@ -224,7 +227,9 @@ def save_data(endpoints, opls, enddirs, stage):
 def main():
     f = lux.Flag()
     f.busy()
-    for shp in ["rectangle", "semicircle", "triangle1"]:
+    #shapes = ["rectangle", "semicircle", "triangle1","angled"]
+    shapes = ["angled"]
+    for shp in shapes:
         stage = get_stage(shape=shp,zwalls=(0,0.1))
         add_raypoints(stage, num_raypoints=1000, num_radials=200)
 
@@ -233,5 +238,14 @@ def main():
     f.ready()
 
 
-main()
-print("EOF")
+def external_run(shape="",num_raypoints=1000,num_radials=200,max_steps=10000,zwalls=(0,0.1),step_size=0.01):
+    if shape != "":
+        stage = get_stage(shape=shape,zwalls=zwalls)
+        add_raypoints(stage, num_raypoints=num_raypoints, num_radials=num_radials)
+        endpoints, opls, enddirs = run_trial(stage, show_single_trace=False, step_size = step_size, max_steps=max_steps,use_progbar=False)
+        save_data(endpoints, opls, enddirs, stage)
+
+
+if __name__ == "__main__":
+    main()
+    print("EOF")
