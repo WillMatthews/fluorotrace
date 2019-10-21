@@ -6,6 +6,7 @@ from tkinter import filedialog
 from tkinter import *
 
 import numpy as np
+from scipy.stats import gaussian_kde
 
 import matplotlib.pyplot as plt
 
@@ -100,16 +101,33 @@ def present_data(data):
         angles_safe = []
         opls_safe = []
         wall_normal = [1,0,0]
+        numgood = 0
         for d, opl in zip(enddirs, opls):
             angle = np.arccos(np.dot(d,wall_normal))/ (np.linalg.norm(d) * np.linalg.norm(wall_normal))
-            angle = 180 * (np.pi/2 - angle) /np.pi
+            angle = np.abs(180 * (-np.pi/2 + angle) /np.pi)
             if angle == 90:
                 angle = 0
             if angle >= 0:
                 angles_safe.append(angle)
                 opls_safe.append(opl)
+                numgood += 1
+            if numgood > 15000:
+                break
 
-        plt.scatter(angles_safe, opls_safe)
+
+        # Calculate the point density
+        x = angles_safe
+        y = opls_safe
+        xy = np.vstack([x,y])
+        z = gaussian_kde(xy)(xy)
+
+        # Sort the points by density, so that the densest points are plotted last
+        idx = z.argsort()
+
+        x, y, z = [x[i] for i in idx], [y[i] for i in idx], [z[i] for i in idx]
+
+        plt.scatter(x, y, c=z, s=50, edgecolor='')
+
         plt.xlabel("Angle of exit (yz plane) (Degrees)")
         plt.ylabel("OPL")
         plt.title("Exit angle vs OPL")
@@ -148,7 +166,6 @@ def present_data(data):
     plt.show()
 
 
-
 def main():
     root = Tk()
     root.withdraw()
@@ -158,5 +175,6 @@ def main():
     data = load_data(fname)
     print(data.keys())
     present_data(data)
+
 
 main()

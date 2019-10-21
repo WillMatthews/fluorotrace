@@ -19,7 +19,7 @@ import lux
 
 
 def get_stage(shape="rectangle", zwalls=(0,1)):
-    print("Building Stage")
+    print("Building Stage for",shape,"...")
     if shape == "rectangle":
         nodes   = [[0,0],[0,1],[2,1],[2,0]]
         edge_types = [ "m",  "m",  "d",  "m"]
@@ -37,6 +37,9 @@ def get_stage(shape="rectangle", zwalls=(0,1)):
     elif shape == "triangle2":
         nodes = [[1,0], [0,1], [1,2]]
         edge_types = ["m", "m", "d"]
+    else:
+        print("Shape", shape, "is not defined! Exiting Thread...")
+        exit()
 
     poly = Polygon([n for n in nodes])
     stage = {"name":shape,
@@ -64,7 +67,7 @@ def get_stage(shape="rectangle", zwalls=(0,1)):
             t = "detector"
         else:
             raise Exception
-        print(edge1, edge2)
+        #print(edge1, edge2)
         stage["edges"][i] = {"from":edge1, "to":edge2, "dir":np.array([dy, -dx, 0]), "line":LineString([edge1, edge2]), "type":t}
 
     return stage
@@ -105,11 +108,13 @@ def random_fibonacci_sphere(samples):
 
 
 def normalise(x):
+    if np.linalg.norm(x) == 0:
+        exit()
     return x / np.linalg.norm(x)
 
 
 def reflect(ray, norm):
-    raydir = np.array(ray[0])
+    raydir = normalise(np.array(ray[0]))
     norm = np.array(norm)
     return normalise((np.dot(raydir,norm)) * -2 * norm + raydir)
 
@@ -188,11 +193,11 @@ def run_trial(stage, show_single_trace=False, step_size=0.1, max_steps=10000,use
             raydir_norm = normalise(np.array(raydir))
             rayObj = (raydir_norm , np.array(tile))
             path, opl = sim_ray(rayObj, stage, dl=step_size, max_steps=max_steps)
-            if path is not None and len(path) > 2:
+            if path is not None and len(path) > 3:
                 last_point = path[-1]
-                last_point2 = path[-2]
+                last_point2 = path[-3]
                 endpoints.append(last_point)
-                end_dir = normalise([ x-y for x,y in zip(last_point,last_point2) ])
+                end_dir = normalise([ x-y for x,y in zip(last_point,last_point2)])
                 enddirs.append(end_dir)
                 opls.append(opl)
 

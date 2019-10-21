@@ -1,18 +1,42 @@
 #!/usr/bin/python3
 
+import os
 import threading
 import fluorotrace3
 import lux
+from termcolor import colored
+
+
+
+NUM_WORKERS=os.cpu_count()
+print(NUM_WORKERS,"workers found".upper(),"\n"+"="*20+"\n"*3)
+SHAPES = ["semicircle","triangle1","angled","rectangle","x"]
+
+
+def welcome():
+    ft3 = """      ________                     ______                    _____
+     / ____/ /_  ______  _________/_  __/________ _________ |__  /
+    / /_  / / / / / __ \/ ___/ __ \/ / / ___/ __ `/ ___/ _ \ /_ < 
+   / __/ / / /_/ / /_/ / /  / /_/ / / / /  / /_/ / /__/  __/__/ / 
+  /_/   /_/\__,_/\____/_/   \____/_/ /_/   \__,_/\___/\___/____/  """
+    print(" "* 30 + "Welcome to")
+    print(colored(ft3,"red"))
+    print("\n"*4)
 
 
 def main():
+    welcome()
     f = lux.Flag()
     f.busy()
-    shapes = ["semicircle","triangle1","angled","rectangle"]
+
+    if len(SHAPES) > NUM_WORKERS:
+        print("Too many geometries! Not enough workers.")
+        print("Exiting...")
+        exit()
+
+
     threads = []
-    for shape in shapes:
-        print(dict(shape=shape, num_raypoints=1000,num_radials=200, max_steps=10000, zwalls=(0,0.1), step_size=0.4)
-                               )
+    for shape in SHAPES:
         t = threading.Thread(target=fluorotrace3.external_run,
                             kwargs=dict(shape=shape,
                                 num_raypoints=1000,
