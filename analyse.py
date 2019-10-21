@@ -23,6 +23,7 @@ def present_data(data):
 
     ### LOCATION HIST
     try:
+        print("LOCATION HIST PLOT")
         endpoints = data["ends"]
         plt.figure()
         ends = [e[1] for e in endpoints]
@@ -40,6 +41,7 @@ def present_data(data):
 
     ### OPL HIST
     try:
+        print("OPL HIST PLOT")
         opls = data["opls"]
         plt.figure()
 
@@ -62,6 +64,7 @@ def present_data(data):
 
     ### EXIT ANGLE HIST
     try:
+        print("EXIT ANGLE HIST PLOT")
         enddirs = data["dir"]
         plt.figure()
 
@@ -86,27 +89,33 @@ def present_data(data):
         print(e)
 
 
-    # ### EXIT ANGLE vs PATH LENGTH SCATTER 3D
-    # #try:
-    # enddirs = data["dir"]
-    # opls = data["opls"]
-    # print(len(enddirs),len(opls),"xxxxxxxxxxxxxxxxx")
-    # plt.figure()
-    # # the histogram of the data
-    # angles = []
-    # wall_normal = [1,0,0]
-    # for d, opl in zip(enddirs, opls):
-    #     angle = np.arcsin(np.dot(d,wall_normal))/ (np.linalg.norm(d) * np.linalg.norm(wall_normal))
-    #     angle = 180 * angle/np.pi
-    #     angles.append(angle)
-    #
-    # plt.scatter(angles, opls)
-    # plt.xlabel("Angle of exit (yz plane) (Degrees)")
-    # plt.ylabel("OPL")
-    # plt.title("Exit angle vs OPL")
-    # plt.grid()
-    # #except Exception as e:
-    # #    print(e)
+    ### EXIT ANGLE vs PATH LENGTH SCATTER 3D
+    try:
+        print("EXIT ANGLE PATH LENGTH SCATTER PLOT")
+        enddirs = data["dir"]
+        opls = data["opls"]
+        print(len(enddirs),len(opls),"xxxxxxxxxxxxxxxxx")
+        plt.figure()
+        # the histogram of the data
+        angles_safe = []
+        opls_safe = []
+        wall_normal = [1,0,0]
+        for d, opl in zip(enddirs, opls):
+            angle = np.arccos(np.dot(d,wall_normal))/ (np.linalg.norm(d) * np.linalg.norm(wall_normal))
+            angle = 180 * (np.pi/2 - angle) /np.pi
+            if angle == 90:
+                angle = 0
+            if angle >= 0:
+                angles_safe.append(angle)
+                opls_safe.append(opl)
+
+        plt.scatter(angles_safe, opls_safe)
+        plt.xlabel("Angle of exit (yz plane) (Degrees)")
+        plt.ylabel("OPL")
+        plt.title("Exit angle vs OPL")
+        plt.grid()
+    except Exception as e:
+        print(e)
 
 
 
@@ -118,6 +127,7 @@ def present_data(data):
         print(e)
 
     try:
+        print("GEOMETRY PLOT")
         plt.figure()
         stage = data["stage"]
         tiles = stage["raypoints"]
