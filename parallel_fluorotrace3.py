@@ -22,8 +22,14 @@ def welcome():
     print(" "* 30 + colored("Welcome to","blue"))
     print(colored(ft3,"red"))
     print("\n"*2)
-    print(" "* 30 + colored("Version 0.1","green"))
+    print(" "* 29 + colored("Version 0.10","green"))
     print("\n"*4)
+
+
+def chunks(l, n):
+    """Yield successive n-sized chunks from l."""
+    for i in range(0, len(l), n):
+        yield l[i:i + n]
 
 
 def main():
@@ -33,28 +39,30 @@ def main():
 
     if len(SHAPES) > NUM_WORKERS:
         print("Too many geometries! Not enough workers.")
-        print("Exiting...")
-        exit()
+        print("Splitting List...")
 
     threads = []
-    for shape in SHAPES:
-        t = threading.Thread(target=fluorotrace3.external_run,
-                            kwargs=dict(shape=shape,
-                                num_raypoints=1000,
-                                num_radials=200,
-                                max_steps=10000,
-                                zwalls=(0,0.1),
-                                step_size=0.01
-                               )
-                            )
+    for shape_list in chunks(SHAPES,NUM_WORKERS):
+        for shape in shape_list:
+            t = threading.Thread(target=fluorotrace3.external_run,
+                                kwargs=dict(shape=shape,
+                                    num_raypoints=1000,
+                                    num_radials=200,
+                                    max_steps=10000,
+                                    zwalls=(0,0.1),
+                                    step_size=0.01
+                                   )
+                                )
 
-        threads.append(t)
+            threads.append(t)
 
-    for thd in threads:
-        thd.start()
+        for thd in threads:
+            thd.start()
 
-    for thd in threads:
-        thd.join()
+        for thd in threads:
+            thd.join()
+
+        threads = []
 
     f.ready()
 
