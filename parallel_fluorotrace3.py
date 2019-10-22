@@ -2,6 +2,7 @@
 
 import os
 import threading
+import time
 import fluorotrace3
 import lux
 from termcolor import colored
@@ -32,37 +33,48 @@ def chunks(l, n):
         yield l[i:i + n]
 
 
+def wait_for_slot(threads):
+    all_alive = True
+    while all_alive:
+        for thread in threads:
+            if not thread.isAlive():
+                thread.handled = True
+                all_alive = False
+        time.sleep(0.1)
+    return [t for t in threads if not t.handled]
+
+
 def main():
     welcome()
     f = lux.Flag()
     f.busy()
 
-    if len(SHAPES) > NUM_WORKERS:
+    if len(SHAPES) > NUM_WORKERS-1:
         print("Too many geometries! Not enough workers.")
         print("Splitting List...")
 
     threads = []
-    for shape_list in chunks(SHAPES,NUM_WORKERS):
-        for shape in shape_list:
-            t = threading.Thread(target=fluorotrace3.external_run,
-                                kwargs=dict(shape=shape,
-                                    num_raypoints=1000,
-                                    num_radials=200,
-                                    max_steps=10000,
-                                    zwalls=(0,0.1),
-                                    step_size=0.01
-                                   )
-                                )
+    for i, shape in enumerate(SHAPES):
+        if i >= NUM_WORKERS-1:
+            threads = wait_for_slot(threads)
+        else:
+            pass
 
-            threads.append(t)
+        t = threading.Thread(target=fluorotrace3.external_run,
+                            kwargs=dict(shape=shape,
+                                num_raypoints=1000,
+                                num_radials=200,
+                                max_steps=10000,
+                                zwalls=(0,0.1),
+                                step_size=0.01
+                               )
+                            )
+        t.handled = False
+        t.start()
+        threads.append(t)
 
-        for thd in threads:
-            thd.start()
-
-        for thd in threads:
-            thd.join()
-
-        threads = []
+    for thd in threads:
+        thd.join()
 
     f.ready()
 
