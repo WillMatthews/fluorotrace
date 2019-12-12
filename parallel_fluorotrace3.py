@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 import os
-import threading
+import multiprocessing
 import time
 import fluorotrace3
 import lux
@@ -11,7 +11,8 @@ from termcolor import colored
 
 NUM_WORKERS=os.cpu_count()
 print(NUM_WORKERS,"workers found".upper(),"\n"+"="*20+"\n"*3)
-SHAPES = ["semicircle","triangle1","angled","rectangle","x"]
+#SHAPES = ["semicircle","triangle1","angled","rectangle","x"]
+SHAPES = ["tmp"+str(i) for i in range(100)]
 
 
 def welcome():
@@ -33,15 +34,15 @@ def chunks(l, n):
         yield l[i:i + n]
 
 
-def wait_for_slot(threads):
+def wait_for_slot(jobs):
     all_alive = True
     while all_alive:
-        for thread in threads:
-            if not thread.isAlive():
-                thread.handled = True
+        for job in jobs:
+            if not job.is_alive():
+                job.handled = True
                 all_alive = False
-        time.sleep(0.1)
-    return [t for t in threads if not t.handled]
+        time.sleep(0.05)
+    return [t for t in jobs if not t.handled]
 
 
 def main():
@@ -53,14 +54,14 @@ def main():
         print("Too many geometries! Not enough workers.")
         print("Splitting List...")
 
-    threads = []
+    jobs = []
     for i, shape in enumerate(SHAPES):
         if i >= NUM_WORKERS-1:
-            threads = wait_for_slot(threads)
+            jobs = wait_for_slot(jobs)
         else:
             pass
 
-        t = threading.Thread(target=fluorotrace3.external_run,
+        job = multiprocessing.Process(target=fluorotrace3.external_run,
                             kwargs=dict(shape=shape,
                                 num_raypoints=1000,
                                 num_radials=200,
@@ -69,12 +70,12 @@ def main():
                                 step_size=0.01
                                )
                             )
-        t.handled = False
-        t.start()
-        threads.append(t)
+        job.handled = False
+        job.start()
+        jobs.append(job)
 
-    for thd in threads:
-        thd.join()
+    for job_ in jobs:
+        job_.join()
 
     f.ready()
 

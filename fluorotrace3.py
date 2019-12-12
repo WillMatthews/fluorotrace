@@ -15,39 +15,26 @@ from matplotlib import cm
 from mpl_toolkits.mplot3d import Axes3D
 
 import progressbar
+import geometry
 import lux
+
+N1 = 1.492 # acrylic?
+N2 = 1.00027 # air at STP
+CRIT_ANGLE = np.arcsin(N2/N1)
+print("Assuming Critical Angle", "{:0.3f}".format(CRIT_ANGLE * 180/np.pi), "Deg")
 
 
 def get_stage(shape="rectangle", zwalls=(0,1)):
     print("Building Stage for",shape,"...")
-    if shape == "rectangle":
-        nodes   = [[0,0],[0,1],[2,1],[2,0]]
-        edge_types = [ "m",  "m",  "d",  "m"]
-    elif shape == "angled":
-        nodes   = [[1,0], [0,1], [1,2], [3,2], [3,0]]
-        edge_types = [ "m",  "m",  "m", "d",  "m"]
-    elif shape == "semicircle":
-        nodes = [[-np.sin(np.pi * x), np.cos(np.pi * x)] for x in np.linspace(0,1,20)]
-        edge_types = ["m" for x in nodes]
-        edge_types[-1] = "d"
-        edge_types.append("m")
-    elif shape == "triangle1":
-        nodes = [[1,0], [0,1], [1,2]]
-        edge_types = ["m", "m", "d"]
-    elif shape == "triangle2":
-        nodes = [[1,0], [0,1], [1,2]]
-        edge_types = ["m", "m", "d"]
-    else:
-        print("Shape", shape, "is not defined! Exiting Thread...")
-        exit()
+    nodes, edge_types = geometry.get_shape(shape)
 
     poly = Polygon([n for n in nodes])
     stage = {"name":shape,
         "polygon":poly,
         "zwalls":zwalls,
         "edges":{},
-        "xrange": [min([x[0] for x in nodes]),max([x[0] for x in nodes])],
-        "yrange": [min([x[1] for x in nodes]),max([x[1] for x in nodes])],
+        "xrange": [min([x[0] for x in nodes]), max([x[0] for x in nodes])],
+        "yrange": [min([x[1] for x in nodes]), max([x[1] for x in nodes])],
         "zrange": [zwalls[0], zwalls[1]]
         }
 
@@ -58,7 +45,7 @@ def get_stage(shape="rectangle", zwalls=(0,1)):
         else:
             edge2 = nodes[i+1]
 
-        dx, dy = edge2[0]-edge1[0], edge2[1] - edge1[1]
+        dx, dy = edge2[0] - edge1[0], edge2[1] - edge1[1]
         if edge_types[i] == "m":
             t = "mirror"
         elif edge_types[i] == "dump":
@@ -109,18 +96,31 @@ def random_fibonacci_sphere(samples):
 
 def normalise(x):
     if np.linalg.norm(x) == 0:
-        exit()
+        raise ValueError("Vector presented to normalise() had norm of zero")
     return x / np.linalg.norm(x)
 
 
 def reflect(ray, norm):
     raydir = normalise(np.array(ray[0]))
-    norm = np.array(norm)
+    norm = normalise(np.array(norm))
     return normalise((np.dot(raydir,norm)) * -2 * norm + raydir)
 
 
+def ray_angle(ray, norm):
+    raydir = normalise(np.array(ray[0]))
+    norm = np.array(norm)
+    return np.arccos(np.dot(raydir, norm))
+
+
+def is_outside_crit_angle(ray, wall, crit_angle=np.pi/2):
+    angle = np.abs(ray_angle(ray, wall)) - np.pi/2
+    #if angle < crit_angle:
+    #    print("TIR-TERMINATED RAY: GOT ANGLE", "{:0.2f}".format(angle), "{:0.2f}".format(crit_angle))
+    return True if angle > crit_angle else False
+
+
 #@profile
-def sim_ray(ray, stage, dl=0.1,max_steps=10000):
+def sim_ray(ray, stage, dl=0.1, max_steps=10000):
     path, itercount, detected  = [], 0, False
     minz, maxz = stage["zwalls"]
     while not detected:
@@ -130,6 +130,7 @@ def sim_ray(ray, stage, dl=0.1,max_steps=10000):
         oldray = ray
         path.append(oldray[1])
         ray = (ray[0], ray[1] + ray[0] * dl)
+
         if not stage["polygon"].contains(Point(ray[1][0], ray[1][1])):
             ## find intersecting line...
             test_line = LineString([(ray[1][0], ray[1][1]), (oldray[1][0], oldray[1][1])])
@@ -146,34 +147,43 @@ def sim_ray(ray, stage, dl=0.1,max_steps=10000):
             if do_reflect:
                 itercount -= 1
                 wall = normalise(stage["edges"][ref]["dir"])
-                ray = (reflect(ray, wall), ray[1] - ray[0] * dl)
+                if is_outside_crit_angle(ray, wall, CRIT_ANGLE):
+                    ray = (reflect(ray, wall), ray[1] - ray[0] * dl)
+                else:
+                    return None, None # Ray Exited
             else:
                 if is_dump:
-                    return None, None
+                    return None, None # Ray has hit beam dump
                 return path, itercount * dl
 
         if ray[1][2] < minz:
             itercount -= 1
-            wall = [0,0,1]
-            ray = (reflect(ray, wall), ray[1] - ray[0] * dl)
+            wall = [0, 0, 1]
+            if is_outside_crit_angle(ray, wall, CRIT_ANGLE):
+                ray = (reflect(ray, wall), ray[1] - ray[0] * dl)
+            else:
+                return None, None # Ray Exited
         elif ray[1][2] > maxz:
             itercount -= 1
-            wall = [0,0,-1]
-            ray = (reflect(ray, wall), ray[1] - ray[0] * dl)
+            wall = [0, 0, -1]
+            if is_outside_crit_angle(ray, wall, CRIT_ANGLE):
+                ray = (reflect(ray, wall), ray[1] - ray[0] * dl)
+            else:
+                return None, None # Ray Exited
 
 
 def add_raypoints(stage, num_raypoints=1000, num_radials=200):
     raypoints, cnt = [], 0
     while len(raypoints) < num_raypoints:
-        x = random.random()*(stage["xrange"][1]-stage["xrange"][0]) + stage["xrange"][0]
-        y = random.random()*(stage["yrange"][1]-stage["yrange"][0]) + stage["yrange"][0]
-        z = random.random()*(stage["zrange"][1]-stage["zrange"][0]) + stage["zrange"][0]
-        if stage["polygon"].contains(Point(x,y)):
-            raypoints.append([x,y,z])
+        x = random.random()*(stage["xrange"][1]-stage["xrange"][0])+wstage["xrange"][0]
+        y = random.random()*(stage["yrange"][1]-stage["yrange"][0])+stage["yrange"][0]
+        z = random.random()*(stage["zrange"][1]-stage["zrange"][0])+stage["zrange"][0]
+        if stage["polygon"].contains(Point(x, y)):
+            raypoints.append([x, y, z])
 
     stage["raypoints"] = raypoints
     stage["numradials"] = num_radials
-    print(stage["name"]+":",len(raypoints), "RayPoints Added: ", len(raypoints) * num_radials, "rays to be traced")
+    print(stage["name"] + ":", len(raypoints), "RayPoints Added: ", len(raypoints) * num_radials, "rays to be traced")
 
 
 def run_trial(stage, show_single_trace=False, step_size=0.1, max_steps=10000,use_progbar=True):
@@ -182,7 +192,7 @@ def run_trial(stage, show_single_trace=False, step_size=0.1, max_steps=10000,use
 
     endpoints, opls, enddirs = [], [], []
     if use_progbar:
-        loopiter = progressbar.progressbar(range(len(tiles)), redirect_stdout=True)
+        loopiter = progressbar.progressbar(range(len(tiles)), redirect_stdout=False)
     else:
         loopiter = range(len(tiles))
     for j in loopiter:
@@ -191,7 +201,7 @@ def run_trial(stage, show_single_trace=False, step_size=0.1, max_steps=10000,use
         raydirs = random_fibonacci_sphere(stage["numradials"])
         for i, raydir in enumerate(raydirs):
             raydir_norm = normalise(np.array(raydir))
-            rayObj = (raydir_norm , np.array(tile))
+            rayObj = (raydir_norm, np.array(tile))
             path, opl = sim_ray(rayObj, stage, dl=step_size, max_steps=max_steps)
             if path is not None and len(path) > 3:
                 last_point = path[-1]
@@ -235,15 +245,15 @@ def main():
     #shapes = ["rectangle", "semicircle", "triangle1","angled"]
     shapes = ["angled"]
     for shp in shapes:
-        stage = get_stage(shape=shp,zwalls=(0,0.1))
-        add_raypoints(stage, num_raypoints=1000, num_radials=200)
+        stage = get_stage(shape=shp, zwalls=(0, 0.1))
+        add_raypoints(stage, num_raypoints=10000, num_radials=1000)
 
-        endpoints, opls, enddirs = run_trial(stage, show_single_trace=False, step_size = 0.01, max_steps=10000)
+        endpoints, opls, enddirs = run_trial(stage, show_single_trace=True, step_size = 0.01, max_steps=10000)
         save_data(endpoints, opls, enddirs, stage)
     f.ready()
 
 
-def external_run(shape="",num_raypoints=1000,num_radials=200,max_steps=10000,zwalls=(0,0.1),step_size=0.01):
+def external_run(shape="", num_raypoints=1000, num_radials=200, max_steps=10000, zwalls=(0,0.1), step_size=0.01):
     if shape != "":
         stage = get_stage(shape=shape,zwalls=zwalls)
         add_raypoints(stage, num_raypoints=num_raypoints, num_radials=num_radials)
